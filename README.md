@@ -1,4 +1,4 @@
-# Dicoding Collection Dashboard ✨
+# Dashboard Analisis Data Sepeda
 
 ## Setup Environment - Anaconda
 ```
