@@ -3,11 +3,39 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
 sns.set(style="dark")
+from pathlib import Path
 
 
 
-day_df = pd.read_csv("day_fix.csv", delimiter=",")
-hour_df = pd.read_csv("hour_fix.csv", delimiter=",")
+# Cari file CSV di beberapa lokasi (folder file saat ini, parent, atau working dir)
+BASE_DIR = Path(__file__).resolve().parent
+search_paths = [BASE_DIR, BASE_DIR.parent, Path.cwd()]
+
+def find_csv(name: str) -> Path | None:
+    for folder in search_paths:
+        candidate = folder / name
+        if candidate.exists():
+            return candidate
+    return None
+
+day_path = find_csv("day_fix.csv")
+hour_path = find_csv("hour_fix.csv")
+
+if day_path is None or hour_path is None:
+    missing = []
+    if day_path is None:
+        missing.append("day_fix.csv")
+    if hour_path is None:
+        missing.append("hour_fix.csv")
+    # Tampilkan path yang diperiksa agar lebih mudah debug saat deploy
+    checked = "\n".join(str(p) for p in search_paths)
+    st.error(
+        f"File CSV tidak ditemukan: {', '.join(missing)}\n\nPaths yang diperiksa:\n{checked}\n\nPastikan file CSV berada di repository dan tidak di-ignore saat deploy."
+    )
+    st.stop()
+
+day_df = pd.read_csv(day_path, delimiter=",")
+hour_df = pd.read_csv(hour_path, delimiter=",")
 
 datetime_columns = ["date"]
 day_df.sort_values(by="date", inplace=True)
@@ -28,12 +56,19 @@ max_date_hour = hour_df["date"].max()
  
 with st.sidebar:
     st.image("https://previews.123rf.com/images/stacyl17/stacyl171912/stacyl17191200104/135618701-vector-illustration-of-bike-rental-brush-lettering-for-banner-leaflet-poster-clothes-logo.jpg")
-    
-    start_date, end_date = st.date_input(
-        label="Rentang Waktu",min_value=min_date_day,
+    date_range = st.date_input(
+        label="Rentang Waktu",
+        min_value=min_date_day,
         max_value=max_date_day,
-        value=[min_date_day, max_date_day]
+        value=(min_date_day, max_date_day),
     )
+
+    # `st.date_input` can return a single `date` or a tuple/list of two dates.
+    # Normalisasi ke `start_date, end_date` untuk menghindari ValueError.
+    if isinstance(date_range, (list, tuple)):
+        start_date, end_date = date_range
+    else:
+        start_date = end_date = date_range
 filtered_day_df = day_df[(day_df["date"] >= pd.to_datetime(start_date)) & (day_df["date"] <= pd.to_datetime(end_date))]
 filtered_hour_df = hour_df[(hour_df["date"] >= pd.to_datetime(start_date)) & (hour_df["date"] <= pd.to_datetime(end_date))]
 
